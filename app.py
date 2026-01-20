@@ -1,3 +1,4 @@
+import io
 import streamlit as st
 import pandas as pd
 import joblib
@@ -254,13 +255,14 @@ st.sidebar.markdown("---")
 st.sidebar.header("📤 Export Decisions")
 
 if st.sidebar.button("Generate & Download Full Portfolio"):
-    output_file = os.path.join(OUTPUT_DIR, "icc_decisions_full_portfolio.xlsx")
-    df.to_excel(output_file, index=False)
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False, engine="openpyxl")
+    buffer.seek(0)
 
-    with open(output_file, "rb") as f:
-        st.sidebar.download_button(
-            "⬇️ Download Excel",
-            data=f,
-            file_name="icc_decisions_full_portfolio.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    st.sidebar.download_button(
+        label="⬇️ Download Excel",
+        data=buffer,
+        file_name="icc_decisions_full_portfolio.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
