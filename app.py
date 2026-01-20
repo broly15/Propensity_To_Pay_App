@@ -112,6 +112,24 @@ df["decision_label"] = df["decision"].map(DECISION_LABELS)
 st.success(f"Loaded and processed {len(df):,} loans")
 
 # --------------------------------------------------
+# EXPORT — ALWAYS AVAILABLE (CLOUD SAFE)
+# --------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("📤 Export Decisions")
+
+buffer = io.BytesIO()
+df.to_excel(buffer, index=False, engine="openpyxl")
+buffer.seek(0)
+
+st.sidebar.download_button(
+    label="⬇️ Download Full Portfolio (Excel)",
+    data=buffer,
+    file_name="icc_decisions_full_portfolio.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+
+# --------------------------------------------------
 # SIDEBAR — SELECTION MODE
 # --------------------------------------------------
 st.sidebar.markdown("---")
