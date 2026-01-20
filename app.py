@@ -1,9 +1,9 @@
-import io
 import streamlit as st
 import pandas as pd
 import joblib
 import os
 import matplotlib.pyplot as plt
+import io
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -31,19 +31,13 @@ THRESHOLD = 0.5
 DECISION_LABELS = {1: "ICC RECOVERABLE", 0: "REFER OUT"}
 DECISION_COLORS = {1: "green", 0: "red"}
 
-# ---- RELATIVE OUTPUT PATH (CLOUD SAFE)
-OUTPUT_DIR = os.path.join("outputs", "tables")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
 # --------------------------------------------------
-# LOAD MODEL (RELATIVE PATH)
+# LOAD MODEL (CLOUD SAFE)
 # --------------------------------------------------
 @st.cache_resource
 def load_model():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(
-        base_dir, "outputs", "models", "final_model.pkl"
-    )
+    model_path = os.path.join(base_dir, "outputs", "models", "final_model.pkl")
     return joblib.load(model_path)
 
 model = load_model()
@@ -249,20 +243,18 @@ else:
         st.dataframe(customer_df)
 
 # --------------------------------------------------
-# EXPORT
+# EXPORT — CLOUD SAFE (NO CRASH)
 # --------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.header("📤 Export Decisions")
 
-if st.sidebar.button("Generate & Download Full Portfolio"):
-    buffer = io.BytesIO()
-    df.to_excel(buffer, index=False, engine="openpyxl")
-    buffer.seek(0)
+buffer = io.BytesIO()
+df.to_excel(buffer, index=False, engine="openpyxl")
+buffer.seek(0)
 
-    st.sidebar.download_button(
-        label="⬇️ Download Excel",
-        data=buffer,
-        file_name="icc_decisions_full_portfolio.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
+st.sidebar.download_button(
+    label="⬇️ Download Full Portfolio (Excel)",
+    data=buffer,
+    file_name="icc_decisions_full_portfolio.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
