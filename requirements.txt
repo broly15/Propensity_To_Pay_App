@@ -6,3 +6,4 @@ joblib
 matplotlib
 openpyxl
 xgboost==3.1.2
+xlsxwriter
