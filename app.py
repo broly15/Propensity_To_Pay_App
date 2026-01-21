@@ -3,12 +3,15 @@ import pandas as pd
 import joblib
 import os
 import matplotlib.pyplot as plt
-import io
 
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
-st.set_page_config(page_title="Propensity-To-Pay Recovery Decision Engine", layout="wide")
+st.set_page_config(
+    page_title="Propensity-To-Pay Recovery Decision Engine",
+    layout="wide"
+)
+
 st.title("📞 Propensity-To-Pay Recovery Decision Engine")
 st.caption("Predict whether a loan should be handled by ICC or referred out")
 
@@ -31,16 +34,37 @@ THRESHOLD = 0.5
 DECISION_LABELS = {1: "ICC RECOVERABLE", 0: "REFER OUT"}
 DECISION_COLORS = {1: "green", 0: "red"}
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs", "tables")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 # --------------------------------------------------
-# LOAD MODEL (CLOUD SAFE)
+# SESSION STATE (CRITICAL FIX)
+# --------------------------------------------------
+if "batch_file_ready" not in st.session_state:
+    st.session_state.batch_file_ready = False
+
+if "batch_file_path" not in st.session_state:
+    st.session_state.batch_file_path = None
+
+# --------------------------------------------------
+# LOAD MODEL
 # --------------------------------------------------
 @st.cache_resource
 def load_model():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, "outputs", "models", "final_model.pkl")
+    model_path = os.path.join(base_dir, "models", "final_model.pkl")
+
+    if not os.path.exists(model_path):
+        st.error(f"Model file not found at: {model_path}")
+        st.stop()
+
     return joblib.load(model_path)
 
 model = load_model()
+
 
 # --------------------------------------------------
 # VISUAL HELPERS
@@ -109,25 +133,7 @@ df["icc_recovery_probability"] = model.predict_proba(X)[:, 1]
 df["decision"] = (df["icc_recovery_probability"] >= THRESHOLD).astype(int)
 df["decision_label"] = df["decision"].map(DECISION_LABELS)
 
-st.success(f"Loaded and processed {len(df):,} loans")
-
-# --------------------------------------------------
-# EXPORT — ALWAYS AVAILABLE (CLOUD SAFE)
-# --------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.header("📤 Export Decisions")
-
-buffer = io.BytesIO()
-df.to_excel(buffer, index=False, engine="openpyxl")
-buffer.seek(0)
-
-st.sidebar.download_button(
-    label="⬇️ Download Full Portfolio (Excel)",
-    data=buffer,
-    file_name="icc_decisions_full_portfolio.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
-
+st.success(f"Loaded and processed {len(df)} loans")
 
 # --------------------------------------------------
 # SIDEBAR — SELECTION MODE
@@ -141,10 +147,9 @@ selection_mode = st.sidebar.radio(
 )
 
 # --------------------------------------------------
-# DRILLDOWN / HOME
+# DRILLDOWN MODE
 # --------------------------------------------------
 if selection_mode == "Drilldown by Decision":
-
     icc_count = (df["decision_label"] == "ICC RECOVERABLE").sum()
     refer_count = (df["decision_label"] == "REFER OUT").sum()
 
@@ -155,9 +160,6 @@ if selection_mode == "Drilldown by Decision":
         st.metric("🔴 Refer Out Loans", f"{refer_count:,}")
 
     plot_distribution_pie(df, "Overall Portfolio")
-
-    icc_df = df[df["decision_label"] == "ICC RECOVERABLE"]
-    refer_df = df[df["decision_label"] == "REFER OUT"]
 
     def paginated_table(data, key):
         page = st.number_input(
@@ -172,10 +174,10 @@ if selection_mode == "Drilldown by Decision":
         st.dataframe(data.iloc[start:end])
 
     st.subheader("🟢 ICC Recoverable Loans")
-    paginated_table(icc_df, "icc_page")
+    paginated_table(df[df["decision_label"] == "ICC RECOVERABLE"], "icc_page")
 
     st.subheader("🔴 Refer Out Loans")
-    paginated_table(refer_df, "refer_page")
+    paginated_table(df[df["decision_label"] == "REFER OUT"], "refer_page")
 
 # --------------------------------------------------
 # SINGLE LOAN SEARCH
@@ -195,18 +197,18 @@ elif selection_mode == "Single Loan Search":
             st.stop()
 
         row = customer.iloc[0]
-        prob = row["icc_recovery_probability"] * 100
-        emoji = "🔥" if prob >= 70 else "⚠️" if prob >= 50 else "❄️"
-        confidence = "High" if prob >= 70 else "Medium" if prob >= 50 else "Low"
 
         c1, c2 = st.columns([1.2, 2.8])
         with c1:
             plot_single_decision(row["decision_label"])
         with c2:
+            prob = row["icc_recovery_probability"] * 100
+            emoji = "🔥" if prob >= 70 else "⚠️" if prob >= 50 else "❄️"
+
             st.metric(
-                "📊 ICC Recovery Probability",
-                f"{prob:.1f}%",
-                f"{emoji} {confidence} Confidence"
+                label="📊 ICC Recovery Probability",
+                value=f"{prob:.1f}%",
+                delta=f"{emoji} {'High' if prob>=70 else 'Medium' if prob>=50 else 'Low'} Confidence"
             )
 
         st.subheader("📄 Loan Details")
@@ -241,18 +243,17 @@ else:
 
         if len(customer_df) == 1:
             row = customer_df.iloc[0]
-            prob = row["icc_recovery_probability"] * 100
-            emoji = "🔥" if prob >= 70 else "⚠️" if prob >= 50 else "❄️"
-            confidence = "High" if prob >= 70 else "Medium" if prob >= 50 else "Low"
-
             c1, c2 = st.columns([1.2, 2.8])
             with c1:
                 plot_single_decision(row["decision_label"])
             with c2:
+                prob = row["icc_recovery_probability"] * 100
+                emoji = "🔥" if prob >= 70 else "⚠️" if prob >= 50 else "❄️"
+
                 st.metric(
-                    "📊 ICC Recovery Probability",
-                    f"{prob:.1f}%",
-                    f"{emoji} {confidence} Confidence"
+                    label="📊 ICC Recovery Probability",
+                    value=f"{prob:.1f}%",
+                    delta=f"{emoji} {'High' if prob>=70 else 'Medium' if prob>=50 else 'Low'} Confidence"
                 )
         else:
             plot_distribution_pie(customer_df, "Selected Loans Decision Split")
@@ -261,18 +262,30 @@ else:
         st.dataframe(customer_df)
 
 # --------------------------------------------------
-# EXPORT — CLOUD SAFE (NO CRASH)
+# EXPORT (CLOUD-SAFE | NO CRASH)
 # --------------------------------------------------
+from io import BytesIO
+
 st.sidebar.markdown("---")
 st.sidebar.header("📤 Export Decisions")
 
-buffer = io.BytesIO()
-df.to_excel(buffer, index=False, engine="openpyxl")
-buffer.seek(0)
+@st.cache_data(show_spinner=False)
+def generate_excel(dataframe):
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="Decisions")
+    buffer.seek(0)
+    return buffer
 
-st.sidebar.download_button(
-    label="⬇️ Download Full Portfolio (Excel)",
-    data=buffer,
-    file_name="icc_decisions_full_portfolio.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+if st.sidebar.button("Generate Full Portfolio File"):
+    with st.spinner("Preparing Excel file..."):
+        excel_file = generate_excel(df)
+
+    st.sidebar.success("File ready for download")
+
+    st.sidebar.download_button(
+        label="⬇️ Download Excel",
+        data=excel_file,
+        file_name="icc_decisions_full_portfolio.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
