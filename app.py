@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 import os
 import matplotlib.pyplot as plt
-
+import time
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -278,10 +278,44 @@ def generate_excel(dataframe):
     return buffer
 
 if st.sidebar.button("Generate Full Portfolio File"):
-    with st.spinner("Preparing Excel file..."):
-        excel_file = generate_excel(df)
 
-    st.sidebar.success("File ready for download")
+    progress_bar = st.sidebar.progress(0)
+    status_text = st.sidebar.empty()
+    eta_text = st.sidebar.empty()
+
+    start_time = time.time()
+
+    def update_progress(pct, message):
+        elapsed = time.time() - start_time
+        eta = int((elapsed / pct) * (100 - pct)) if pct > 0 else 0
+
+        progress_bar.progress(pct)
+        status_text.markdown(f"**{message} ({pct}%)**")
+        eta_text.markdown(f"⏳ ETA: ~{eta} sec" if pct < 100 else " ")
+
+    # ---- Smooth animation: 0 → 30
+    for i in range(1, 31):
+        update_progress(i, "🔄 Initializing export")
+        time.sleep(0.02)
+
+    # ---- Smooth animation: 30 → 70
+    for i in range(31, 71):
+        update_progress(i, "📊 Processing loan data")
+        time.sleep(0.02)
+
+    # ---- Actual heavy work
+    update_progress(71, "📝 Writing Excel file")
+    excel_file = generate_excel(df)
+
+    # ---- Smooth animation: 71 → 99
+    for i in range(72, 100):
+        update_progress(i, "📝 Finalizing file")
+        time.sleep(0.02)
+
+    # ---- Completion (GREEN BAR)
+    progress_bar.progress(100)
+    status_text.markdown("### 🎉 File ready (100%)")
+    eta_text.empty()
 
     st.sidebar.download_button(
         label="⬇️ Download Excel",
