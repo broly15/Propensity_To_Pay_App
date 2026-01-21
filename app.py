@@ -55,7 +55,7 @@ if "batch_file_path" not in st.session_state:
 @st.cache_resource
 def load_model():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, "models", "final_model.pkl")
+    model_path = os.path.join(base_dir,"outputs" , "models", "final_model.pkl")
 
     if not os.path.exists(model_path):
         st.error(f"Model file not found at: {model_path}")
