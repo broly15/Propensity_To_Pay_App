@@ -29,7 +29,7 @@ FEATURE_COLS = [
     "ptp_count"
 ]
 
-THRESHOLD = 0.5
+THRESHOLD = 0.4
 
 DECISION_LABELS = {1: "ICC RECOVERABLE", 0: "REFER OUT"}
 DECISION_COLORS = {1: "green", 0: "red"}
