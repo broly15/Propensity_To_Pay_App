@@ -4,10 +4,6 @@ import joblib
 import os
 import matplotlib.pyplot as plt
 import time
-import re
-from io import BytesIO
-from feature_pipeline import extract_features_from_raw
-
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -42,8 +38,10 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(base_dir, "..", "outputs", "tables")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 # --------------------------------------------------
-# SESSION STATE
+# SESSION STATE (CRITICAL FIX)
 # --------------------------------------------------
 if "batch_file_ready" not in st.session_state:
     st.session_state.batch_file_ready = False
@@ -62,10 +60,11 @@ def load_model():
     if not os.path.exists(model_path):
         st.error(f"Model file not found at: {model_path}")
         st.stop()
-
+    
     return joblib.load(model_path)
 
 model = load_model()
+
 
 # --------------------------------------------------
 # VISUAL HELPERS
@@ -105,64 +104,29 @@ def plot_single_decision(decision_label):
 # --------------------------------------------------
 st.sidebar.header("📂 Upload Monthly Loan File")
 
-file_mode = st.sidebar.radio(
-    "Upload File Type",
-    ["Raw File", "Preprocessed Feature File"]
-)
-
 uploaded_file = st.sidebar.file_uploader(
-    "Upload Monthly File (Excel or CSV)",
+    "Upload Processed Monthly File (Excel or CSV)",
     type=["csv", "xlsx"]
 )
 
 if uploaded_file is None:
-    st.info("👈 Upload a monthly file (raw or preprocessed) to begin")
+    st.info("👈 Upload a processed monthly file to begin")
     st.stop()
 
 # --------------------------------------------------
-# LOAD FILE
+# LOAD + PREDICT
 # --------------------------------------------------
 if uploaded_file.name.endswith(".csv"):
-    df_raw = pd.read_csv(uploaded_file)
-
+    df = pd.read_csv(uploaded_file)
 else:
-    if file_mode == "Raw File":
+    df = pd.read_excel(uploaded_file)
 
-        # Try header=0 first
-        df_raw = pd.read_excel(uploaded_file, header=0)
+required_cols = set(FEATURE_COLS + [LOAN_ID_COL])
+missing = required_cols - set(df.columns)
+if missing:
+    st.error(f"Missing required columns: {missing}")
+    st.stop()
 
-        # If loan_id not found, try header=1
-        cols_lower = [str(c).strip().lower() for c in df_raw.columns]
-        expected_cols = {"loan_id", "pos", "emi amount"}
-
-        if not expected_cols.issubset(set(cols_lower)):
-            df_raw = pd.read_excel(uploaded_file, header=1)
-
-    else:
-        df_raw = pd.read_excel(uploaded_file)
-
-# --------------------------------------------------
-# FEATURE EXTRACTION / VALIDATION
-# --------------------------------------------------
-if file_mode == "Raw File":
-    try:
-        df = extract_features_from_raw(df_raw)
-    except Exception as e:
-        st.error(f"Feature extraction failed: {e}")
-        st.stop()
-else:
-    df = df_raw.copy()
-
-    required_cols = set(FEATURE_COLS + [LOAN_ID_COL])
-    missing = required_cols - set(df.columns)
-
-    if missing:
-        st.error(f"Missing required columns in preprocessed file: {missing}")
-        st.stop()
-
-# --------------------------------------------------
-# PREDICT
-# --------------------------------------------------
 X = df[FEATURE_COLS].apply(pd.to_numeric, errors="coerce").fillna(0)
 
 df["icc_recovery_probability"] = model.predict_proba(X)[:, 1]
@@ -229,7 +193,7 @@ elif selection_mode == "Single Loan Search":
         ]
 
         if customer.empty:
-            st.error("Data is insufficient for prediction")
+            st.error("Available data is insufficent")
             st.stop()
 
         row = customer.iloc[0]
@@ -265,7 +229,7 @@ else:
             if x.strip()
         ]
 
-        pattern = "|".join([re.escape(x) for x in loan_list])
+        pattern = "|".join(loan_list)
 
         customer_df = df[
             df[LOAN_ID_COL]
@@ -298,8 +262,10 @@ else:
         st.dataframe(customer_df)
 
 # --------------------------------------------------
-# EXPORT (STABLE)
+# EXPORT (FIXED + STABLE)
 # --------------------------------------------------
+from io import BytesIO
+
 st.sidebar.markdown("---")
 st.sidebar.header("📤 Export Decisions")
 
@@ -327,22 +293,26 @@ if st.sidebar.button("Generate Full Portfolio File"):
         status_text.markdown(f"**{message} ({pct}%)**")
         eta_text.markdown(f"⏳ ETA: ~{eta} sec" if pct < 100 else " ")
 
-    # Smooth animation
+    # ---- Smooth animation: 0 → 30
     for i in range(1, 31):
         update_progress(i, "🔄 Initializing export")
         time.sleep(0.02)
 
+    # ---- Smooth animation: 30 → 70
     for i in range(31, 71):
         update_progress(i, "📊 Processing loan data")
         time.sleep(0.02)
 
+    # ---- Actual heavy work
     update_progress(71, "📝 Writing Excel file")
     excel_file = generate_excel(df)
 
+    # ---- Smooth animation: 71 → 99
     for i in range(72, 100):
         update_progress(i, "📝 Finalizing file")
         time.sleep(0.02)
 
+    # ---- Completion (GREEN BAR)
     progress_bar.progress(100)
     status_text.markdown("### 🎉 File ready (100%)")
     eta_text.empty()
