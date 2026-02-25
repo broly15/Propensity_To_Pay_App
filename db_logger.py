@@ -8,11 +8,11 @@ import streamlit as st
 # DB CONFIG
 # --------------------------------------------------
 DB_CONFIG = {
-    "host": st.secrets["DB_HOST"],
-    "user": st.secrets["DB_USER"],
-    "password": st.secrets["DB_PASSWORD"],
-    "database": st.secrets["DB_NAME"],
-    "port": st.secrets["DB_PORT"],
+    "host": st.secrets["database"]["host"],
+    "user": st.secrets["database"]["user"],
+    "password": st.secrets["database"]["password"],
+    "database": st.secrets["database"]["database"],
+    "port": st.secrets["database"]["port"],
 }
 
 
@@ -232,3 +232,4 @@ def fetch_portfolio_file(run_id):
             )
 
             return cursor.fetchone()
+
