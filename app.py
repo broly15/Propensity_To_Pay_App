@@ -213,8 +213,13 @@ if "portfolio_filename" not in st.session_state:
 # --------------------------------------------------
 @st.cache_resource
 def load_model():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, "..", "outputs", "models", "final_model_2.pkl")
+
+    model_path = os.path.join(
+        os.path.dirname(__file__),
+        "outputs",
+        "models",
+        "final_model_2.pkl"
+    )
 
     if not os.path.exists(model_path):
         st.error(f"Model file not found at: {model_path}")
@@ -223,6 +228,7 @@ def load_model():
     return joblib.load(model_path)
 
 model = load_model()
+
 
 # --------------------------------------------------
 # EXPORT HELPERS
