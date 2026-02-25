@@ -1,16 +1,18 @@
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
+import streamlit as st
 
 
 # --------------------------------------------------
 # DB CONFIG
 # --------------------------------------------------
 DB_CONFIG = {
-    "host": "172.16.123.137",
-    "user": "biopsguru",
-    "password": "r&4nvVhz]}W{+bV.",   # change if needed
-    "database": "recovery_db"
+    "host": st.secrets["DB_HOST"],
+    "user": st.secrets["DB_USER"],
+    "password": st.secrets["DB_PASSWORD"],
+    "database": st.secrets["DB_NAME"],
+    "port": st.secrets["DB_PORT"],
 }
 
 
@@ -228,4 +230,5 @@ def fetch_portfolio_file(run_id):
                 "SELECT file_name, file_data FROM portfolio_files WHERE run_id=%s",
                 (run_id,)
             )
+
             return cursor.fetchone()
